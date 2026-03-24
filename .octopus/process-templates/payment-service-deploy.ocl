@@ -19,6 +19,14 @@ parameter "cloud_target" {
     value "aws" {}
 }
 
+parameter "worker_pool" {
+    display_settings = {
+        Octopus.ControlType = "WorkerPool"
+    }
+    help_text = "Worker pool for server-side steps"
+    label = "Worker Pool"
+}
+
 step "run-unit-tests" {
     name = "Run Unit Tests"
 
@@ -78,7 +86,7 @@ Write-Host "╚═════════════════════�
 EOT
             OctopusUseBundledTooling = "False"
         }
-        worker_pool_variable = ""
+        worker_pool_variable = "worker_pool"
     }
 }
 
@@ -144,7 +152,7 @@ Write-Host "Security scan complete. Payment service meets all requirements."
 EOT
             OctopusUseBundledTooling = "False"
         }
-        worker_pool_variable = ""
+        worker_pool_variable = "worker_pool"
     }
 }
 
@@ -209,7 +217,7 @@ Write-Host "Container image scan passed all PCI-DSS checks."
 EOT
             OctopusUseBundledTooling = "False"
         }
-        worker_pool_variable = ""
+        worker_pool_variable = "worker_pool"
     }
 }
 
@@ -312,7 +320,7 @@ Write-Host "╚═════════════════════�
 EOT
             OctopusUseBundledTooling = "False"
         }
-        worker_pool_variable = ""
+        worker_pool_variable = "worker_pool"
     }
 }
 
@@ -405,7 +413,7 @@ Write-Host "Blue-green deployment complete. $release is now live."
 EOT
             OctopusUseBundledTooling = "False"
         }
-        worker_pool_variable = ""
+        worker_pool_variable = "worker_pool"
     }
 }
 
@@ -473,7 +481,7 @@ Write-Host "Monitoring configuration complete."
 EOT
             OctopusUseBundledTooling = "False"
         }
-        worker_pool_variable = ""
+        worker_pool_variable = "worker_pool"
     }
 }
 
@@ -560,6 +568,6 @@ if ($needsRollback) {
 EOT
             OctopusUseBundledTooling = "False"
         }
-        worker_pool_variable = ""
+        worker_pool_variable = "worker_pool"
     }
 }

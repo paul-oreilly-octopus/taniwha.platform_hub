@@ -19,6 +19,14 @@ parameter "cloud_target" {
     value "gcp" {}
 }
 
+parameter "worker_pool" {
+    display_settings = {
+        Octopus.ControlType = "WorkerPool"
+    }
+    help_text = "Worker pool for server-side steps"
+    label = "Worker Pool"
+}
+
 step "run-unit-tests" {
     name = "Run Unit Tests"
 
@@ -85,7 +93,7 @@ Write-Host "╚═════════════════════�
 EOT
             OctopusUseBundledTooling = "False"
         }
-        worker_pool_variable = ""
+        worker_pool_variable = "worker_pool"
     }
 }
 
@@ -152,7 +160,7 @@ Write-Host "Integration tests complete: $totalIntTests passed, 0 failed."
 EOT
             OctopusUseBundledTooling = "False"
         }
-        worker_pool_variable = ""
+        worker_pool_variable = "worker_pool"
     }
 }
 
@@ -214,7 +222,7 @@ Write-Host "Security scan complete. No blocking findings."
 EOT
             OctopusUseBundledTooling = "False"
         }
-        worker_pool_variable = ""
+        worker_pool_variable = "worker_pool"
     }
 }
 
@@ -276,7 +284,7 @@ Write-Host "Container image scan passed all checks."
 EOT
             OctopusUseBundledTooling = "False"
         }
-        worker_pool_variable = ""
+        worker_pool_variable = "worker_pool"
     }
 }
 
@@ -347,7 +355,7 @@ Write-Host "Deployment complete."
 EOT
             OctopusUseBundledTooling = "False"
         }
-        worker_pool_variable = ""
+        worker_pool_variable = "worker_pool"
     }
 }
 
@@ -413,6 +421,6 @@ Write-Host "Monitoring configuration complete."
 EOT
             OctopusUseBundledTooling = "False"
         }
-        worker_pool_variable = ""
+        worker_pool_variable = "worker_pool"
     }
 }
