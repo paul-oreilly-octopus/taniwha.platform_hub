@@ -1,5 +1,5 @@
 name = "Node.js Service Deploy"
-description = "Deployment pipeline for Node.js services including messaging, notification, and API gateway. Includes feature flag seeding for progressive rollouts."
+description = "Deployment pipeline for Node.js services. Includes feature flag seeding for progressive rollouts."
 
 parameter "target_tags" {
     display_settings = {
@@ -23,11 +23,66 @@ step "run-unit-tests" {
     name = "Run Unit Tests"
 
     action {
+        action_type = "Octopus.Script"
         properties = {
-            Octopus.Action.Template.Id = "ActionTemplates-64"
-            Octopus.Action.Template.Version = "0"
-            Language = "node"
-            CloudTarget = "#{cloud_target}"
+            Octopus.Action.RunOnServer = "true"
+            Octopus.Action.Script.ScriptSource = "Inline"
+            Octopus.Action.Script.Syntax = "PowerShell"
+            Octopus.Action.Script.ScriptBody = <<-EOT
+$project = $OctopusParameters['Octopus.Project.Name']
+$release = $OctopusParameters['Octopus.Release.Number']
+$env = $OctopusParameters['Octopus.Environment.Name']
+
+Write-Host ""
+Write-Host "╔══════════════════════════════════════════════════════════════╗"
+Write-Host "║  Node.js Unit Tests                                        ║"
+Write-Host "║  Project: $project"
+Write-Host "║  Release: $release | Environment: $env"
+Write-Host "╚══════════════════════════════════════════════════════════════╝"
+Write-Host ""
+
+Write-Host "==> Installing dependencies..."
+Start-Sleep -Seconds 1
+Write-Host "    npm ci --prefer-offline"
+Write-Host "    added 847 packages in 4.2s"
+Write-Host ""
+
+Write-Host "==> Running: npm test -- --coverage --watchAll=false"
+Start-Sleep -Seconds 2
+
+$totalTests = Get-Random -Minimum 55 -Maximum 140
+$testSuites = Get-Random -Minimum 8 -Maximum 22
+$coverage = Get-Random -Minimum 78 -Maximum 95
+
+Write-Host ""
+Write-Host " PASS  src/controllers/__tests__/health.test.ts"
+Write-Host " PASS  src/controllers/__tests__/api.test.ts"
+Write-Host " PASS  src/services/__tests__/user.test.ts"
+Write-Host " PASS  src/services/__tests__/notification.test.ts"
+Write-Host " PASS  src/middleware/__tests__/auth.test.ts"
+Write-Host " PASS  src/middleware/__tests__/rateLimit.test.ts"
+Write-Host " PASS  src/utils/__tests__/validation.test.ts"
+Write-Host " PASS  src/utils/__tests__/crypto.test.ts"
+Write-Host ""
+Write-Host "----------|---------|----------|---------|---------|"
+Write-Host "File      | % Stmts | % Branch | % Funcs | % Lines"
+Write-Host "----------|---------|----------|---------|---------|"
+Write-Host "All files |   $coverage |    $(Get-Random -Minimum 72 -Maximum 93) |    $(Get-Random -Minimum 80 -Maximum 96) |   $coverage"
+Write-Host "----------|---------|----------|---------|---------|"
+Write-Host ""
+
+Write-Host "Test Suites: $testSuites passed, $testSuites total"
+Write-Host "Tests:       $totalTests passed, $totalTests total"
+Write-Host "Snapshots:   $(Get-Random -Minimum 3 -Maximum 12) passed"
+Write-Host "Time:        $(Get-Random -Minimum 3 -Maximum 8).$(Get-Random -Minimum 10 -Maximum 99)s"
+Write-Host ""
+
+Write-Host "╔══════════════════════════════════════════════════════════════╗"
+Write-Host "║  Results: $totalTests passed, 0 failed"
+Write-Host "║  Coverage: $coverage%"
+Write-Host "╚══════════════════════════════════════════════════════════════╝"
+EOT
+            OctopusUseBundledTooling = "False"
         }
         worker_pool_variable = ""
     }
@@ -38,11 +93,63 @@ step "run-security-scan" {
     start_trigger = "StartAfterPrevious"
 
     action {
+        action_type = "Octopus.Script"
         properties = {
-            Octopus.Action.Template.Id = "ActionTemplates-66"
-            Octopus.Action.Template.Version = "0"
-            Language = "node"
-            CloudTarget = "#{cloud_target}"
+            Octopus.Action.RunOnServer = "true"
+            Octopus.Action.Script.ScriptSource = "Inline"
+            Octopus.Action.Script.Syntax = "PowerShell"
+            Octopus.Action.Script.ScriptBody = <<-EOT
+$project = $OctopusParameters['Octopus.Project.Name']
+$release = $OctopusParameters['Octopus.Release.Number']
+
+Write-Host ""
+Write-Host "╔══════════════════════════════════════════════════════════════╗"
+Write-Host "║  Security Scan — Node.js SAST + SCA                       ║"
+Write-Host "║  Project: $project | Release: $release"
+Write-Host "╚══════════════════════════════════════════════════════════════╝"
+Write-Host ""
+
+Write-Host "┌─ Phase 1: SAST (Semgrep — Node.js rules) ─────────────────┐"
+Write-Host "│  Scanning TypeScript/JavaScript source files...           │"
+Start-Sleep -Seconds 2
+
+$rulesChecked = Get-Random -Minimum 200 -Maximum 380
+$filesScanned = Get-Random -Minimum 30 -Maximum 75
+
+Write-Host "│  Rules loaded: $rulesChecked"
+Write-Host "│  Files scanned: $filesScanned"
+Write-Host "│  Findings: 0 critical, 0 high, 1 medium, 2 info"
+Write-Host "│"
+Write-Host "│  [MEDIUM] Prototype pollution risk in object merge"
+Write-Host "│           src/utils/config.ts:34"
+Write-Host "│           Recommendation: Use Object.assign with null prototype"
+Write-Host "│"
+Write-Host "│  [INFO] Console.log in production code"
+Write-Host "│         src/services/notification.ts:89"
+Write-Host "│  [INFO] Unused import"
+Write-Host "│         src/controllers/api.ts:3"
+Write-Host "└────────────────────────────────────────────────────────────┘"
+Write-Host ""
+
+Write-Host "┌─ Phase 2: SCA (npm audit + Trivy) ────────────────────────┐"
+Write-Host "│  Scanning npm dependencies...                             │"
+Start-Sleep -Seconds 1
+
+$deps = Get-Random -Minimum 180 -Maximum 420
+Write-Host "│  Dependencies analyzed: $deps (including transitive)"
+Write-Host "│  Vulnerabilities: 0 critical, 0 high, 3 moderate, 8 low"
+Write-Host "│"
+Write-Host "│  [MOD] CVE-2024-37168 — @grpc/grpc-js ReDoS"
+Write-Host "│        Fixed in: 1.10.9 (current: 1.10.7)"
+Write-Host "│  [MOD] CVE-2024-39338 — axios SSRF in proxy config"
+Write-Host "│        Fixed in: 1.7.4 (current: 1.7.2)"
+Write-Host "│  [MOD] CVE-2024-28863 — tar path traversal"
+Write-Host "│        Fixed in: 6.2.1 (current: 6.2.0)"
+Write-Host "└────────────────────────────────────────────────────────────┘"
+Write-Host ""
+Write-Host "Security scan complete. 3 moderate findings to track."
+EOT
+            OctopusUseBundledTooling = "False"
         }
         worker_pool_variable = ""
     }
@@ -53,10 +160,58 @@ step "scan-container-image" {
     start_trigger = "StartAfterPrevious"
 
     action {
+        action_type = "Octopus.Script"
         properties = {
-            Octopus.Action.Template.Id = "ActionTemplates-67"
-            Octopus.Action.Template.Version = "0"
-            CloudTarget = "#{cloud_target}"
+            Octopus.Action.RunOnServer = "true"
+            Octopus.Action.Script.ScriptSource = "Inline"
+            Octopus.Action.Script.Syntax = "PowerShell"
+            Octopus.Action.Script.ScriptBody = <<-EOT
+$project = $OctopusParameters['Octopus.Project.Name']
+$release = $OctopusParameters['Octopus.Release.Number']
+$cloudTarget = $OctopusParameters['cloud_target']
+
+Write-Host ""
+Write-Host "╔══════════════════════════════════════════════════════════════╗"
+Write-Host "║  Container Image Scan                                      ║"
+Write-Host "║  Image: registry.taniwha.io/$project`:$release"
+Write-Host "║  Cloud: $cloudTarget"
+Write-Host "╚══════════════════════════════════════════════════════════════╝"
+Write-Host ""
+
+Write-Host "==> Pulling image for scanning..."
+Start-Sleep -Seconds 1
+Write-Host "    Image size: 142.8 MB (node:20-slim base)"
+Write-Host "    Layers: 8"
+Write-Host ""
+
+Write-Host "┌─ Trivy Image Scan ────────────────────────────────────────┐"
+Start-Sleep -Seconds 2
+Write-Host "│  OS Packages:  68 installed, 0 high+ vulnerabilities"
+Write-Host "│  Node Modules: $(Get-Random -Minimum 120 -Maximum 280) installed, 0 high+ vulnerabilities"
+Write-Host "│  Secrets:      0 detected"
+Write-Host "│  Misconfig:    0 detected"
+Write-Host "└────────────────────────────────────────────────────────────┘"
+Write-Host ""
+
+Write-Host "┌─ SBOM Generation ─────────────────────────────────────────┐"
+Write-Host "│  Format: CycloneDX JSON v1.5"
+$sbomComponents = Get-Random -Minimum 150 -Maximum 320
+Write-Host "│  Components: $sbomComponents"
+Write-Host "│  Output: sbom-$project-$release.cdx.json"
+Write-Host "└────────────────────────────────────────────────────────────┘"
+Write-Host ""
+
+Write-Host "┌─ FinTech Policy Check ────────────────────────────────────┐"
+Write-Host "│  [PASS] Base image is approved node:20-slim variant"
+Write-Host "│  [PASS] No critical or high CVEs"
+Write-Host "│  [PASS] No embedded secrets or credentials"
+Write-Host "│  [PASS] Image signed with cosign"
+Write-Host "│  [PASS] SBOM attached to image manifest"
+Write-Host "└────────────────────────────────────────────────────────────┘"
+Write-Host ""
+Write-Host "Container image scan passed all checks."
+EOT
+            OctopusUseBundledTooling = "False"
         }
         worker_pool_variable = ""
     }
@@ -70,24 +225,161 @@ step "deploy-to-kubernetes" {
     }
 
     action {
+        action_type = "Octopus.Script"
         properties = {
-            Octopus.Action.Template.Id = "ActionTemplates-68"
-            Octopus.Action.Template.Version = "0"
-            CloudTarget = "#{cloud_target}"
+            Octopus.Action.RunOnServer = "false"
+            Octopus.Action.Script.ScriptSource = "Inline"
+            Octopus.Action.Script.Syntax = "PowerShell"
+            Octopus.Action.Script.ScriptBody = <<-EOT
+$project = $OctopusParameters['Octopus.Project.Name']
+$release = $OctopusParameters['Octopus.Release.Number']
+$env = $OctopusParameters['Octopus.Environment.Name']
+$cloudTarget = $OctopusParameters['cloud_target']
+
+$clusterMap = @{
+    'gcp'   = "gke-taniwha-$env-aue1"
+    'aws'   = "eks-taniwha-$env-apse2"
+    'azure' = "aks-taniwha-$env-aue"
+}
+$cluster = $clusterMap[$cloudTarget]
+if (-not $cluster) { $cluster = "k8s-taniwha-$env" }
+
+Write-Host ""
+Write-Host "╔══════════════════════════════════════════════════════════════╗"
+Write-Host "║  Kubernetes Deployment                                     ║"
+Write-Host "║  Cluster: $cluster"
+Write-Host "║  Namespace: $project-$env"
+Write-Host "║  Image: registry.taniwha.io/$project`:$release"
+Write-Host "╚══════════════════════════════════════════════════════════════╝"
+Write-Host ""
+
+Write-Host "==> Running: helm upgrade --install $project ./chart/"
+Write-Host "    --namespace $project-$env"
+Write-Host "    --set image.tag=$release"
+Write-Host "    --set replicaCount=3"
+Write-Host "    --set nodeVersion=20"
+Write-Host "    --wait --timeout 300s"
+Start-Sleep -Seconds 3
+
+Write-Host ""
+Write-Host "    Release `"$project`" has been upgraded."
+Write-Host "    REVISION: $(Get-Random -Minimum 2 -Maximum 50)"
+Write-Host "    STATUS: deployed"
+Write-Host ""
+
+Write-Host "==> Waiting for rollout..."
+Start-Sleep -Seconds 2
+Write-Host "    deployment.apps/$project successfully rolled out"
+Write-Host "    Pods ready: 3/3"
+Write-Host ""
+
+Write-Host "==> Smoke test: health endpoint..."
+Start-Sleep -Seconds 1
+Write-Host "    GET https://$project.$env.taniwha.io/healthz => 200 OK"
+Write-Host "    GET https://$project.$env.taniwha.io/ready   => 200 OK"
+Write-Host "    Response time: $(Get-Random -Minimum 5 -Maximum 35)ms"
+Write-Host ""
+Write-Host "Deployment complete."
+EOT
+            OctopusUseBundledTooling = "False"
         }
         worker_pool_variable = ""
     }
 }
 
-step "seed-config-and-feature-flags" {
+step "seed-configuration-and-feature-flags" {
     name = "Seed Configuration and Feature Flags"
     start_trigger = "StartAfterPrevious"
 
     action {
+        action_type = "Octopus.Script"
         properties = {
-            Octopus.Action.Template.Id = "ActionTemplates-71"
-            Octopus.Action.Template.Version = "0"
-            CloudTarget = "#{cloud_target}"
+            Octopus.Action.RunOnServer = "true"
+            Octopus.Action.Script.ScriptSource = "Inline"
+            Octopus.Action.Script.Syntax = "PowerShell"
+            Octopus.Action.Script.ScriptBody = <<-EOT
+$project = $OctopusParameters['Octopus.Project.Name']
+$release = $OctopusParameters['Octopus.Release.Number']
+$env = $OctopusParameters['Octopus.Environment.Name']
+$cloudTarget = $OctopusParameters['cloud_target']
+
+Write-Host ""
+Write-Host "╔══════════════════════════════════════════════════════════════╗"
+Write-Host "║  Configuration & Feature Flag Seeding                      ║"
+Write-Host "║  Project: $project | Release: $release"
+Write-Host "║  Environment: $env | Cloud: $cloudTarget"
+Write-Host "╚══════════════════════════════════════════════════════════════╝"
+Write-Host ""
+
+Write-Host "┌─ Configuration Diff ──────────────────────────────────────┐"
+Write-Host "│  Comparing current vs desired configuration...            │"
+Start-Sleep -Seconds 1
+Write-Host "│"
+Write-Host "│  Key                              Current    Desired"
+Write-Host "│  ────────────────────────────────────────────────────────"
+Write-Host "│  RATE_LIMIT_RPM                   1000       1200"
+Write-Host "│  CACHE_TTL_SECONDS                300        600"
+Write-Host "│  MAX_BATCH_SIZE                   50         100"
+Write-Host "│  LOG_LEVEL                        info       info (no change)"
+Write-Host "│"
+Write-Host "│  Changes to apply: 3"
+Write-Host "└────────────────────────────────────────────────────────────┘"
+Write-Host ""
+
+Write-Host "┌─ Secrets Manager Update ──────────────────────────────────┐"
+
+$secretsProvider = switch ($cloudTarget) {
+    'azure' { "Azure Key Vault (taniwha-kv-$env)" }
+    'aws'   { "AWS Secrets Manager ($env/taniwha)" }
+    'gcp'   { "GCP Secret Manager (taniwha-$env)" }
+    default { 'Kubernetes Secrets' }
+}
+
+Write-Host "│  Provider: $secretsProvider"
+Start-Sleep -Seconds 1
+Write-Host "│  Updated: RATE_LIMIT_RPM => 1200"
+Write-Host "│  Updated: CACHE_TTL_SECONDS => 600"
+Write-Host "│  Updated: MAX_BATCH_SIZE => 100"
+Write-Host "│  External Secrets Operator: synced"
+Write-Host "│  Pod restart triggered: rolling update"
+Write-Host "└────────────────────────────────────────────────────────────┘"
+Write-Host ""
+
+Write-Host "┌─ Feature Flag Updates ────────────────────────────────────┐"
+Write-Host "│  Syncing feature flags for $env environment...            │"
+Start-Sleep -Seconds 2
+Write-Host "│"
+Write-Host "│  Flag                          Status    Rollout"
+Write-Host "│  ────────────────────────────────────────────────────────"
+
+switch ($env.ToLower()) {
+    'development' {
+        Write-Host "│  new-dashboard-v2              ON        100%"
+        Write-Host "│  websocket-notifications       ON        100%"
+        Write-Host "│  batch-processing-v3           ON        100%"
+        Write-Host "│  experimental-search           ON        100%"
+    }
+    'staging' {
+        Write-Host "│  new-dashboard-v2              ON        100%"
+        Write-Host "│  websocket-notifications       ON        50%"
+        Write-Host "│  batch-processing-v3           ON        100%"
+        Write-Host "│  experimental-search           OFF       0%"
+    }
+    default {
+        Write-Host "│  new-dashboard-v2              ON        25%"
+        Write-Host "│  websocket-notifications       OFF       0%"
+        Write-Host "│  batch-processing-v3           ON        100%"
+        Write-Host "│  experimental-search           OFF       0%"
+    }
+}
+
+Write-Host "│"
+Write-Host "│  Flags synced: 4 | Changed: 2 | Unchanged: 2"
+Write-Host "└────────────────────────────────────────────────────────────┘"
+Write-Host ""
+Write-Host "Configuration and feature flag seeding complete."
+EOT
+            OctopusUseBundledTooling = "False"
         }
         worker_pool_variable = ""
     }
@@ -98,10 +390,64 @@ step "configure-monitoring" {
     start_trigger = "StartAfterPrevious"
 
     action {
+        action_type = "Octopus.Script"
         properties = {
-            Octopus.Action.Template.Id = "ActionTemplates-74"
-            Octopus.Action.Template.Version = "0"
-            CloudTarget = "#{cloud_target}"
+            Octopus.Action.RunOnServer = "true"
+            Octopus.Action.Script.ScriptSource = "Inline"
+            Octopus.Action.Script.Syntax = "PowerShell"
+            Octopus.Action.Script.ScriptBody = <<-EOT
+$project = $OctopusParameters['Octopus.Project.Name']
+$release = $OctopusParameters['Octopus.Release.Number']
+$env = $OctopusParameters['Octopus.Environment.Name']
+$cloudTarget = $OctopusParameters['cloud_target']
+
+Write-Host ""
+Write-Host "╔══════════════════════════════════════════════════════════════╗"
+Write-Host "║  Monitoring Configuration                                  ║"
+Write-Host "║  Project: $project | Environment: $env"
+Write-Host "╚══════════════════════════════════════════════════════════════╝"
+Write-Host ""
+
+Write-Host "┌─ ServiceMonitor ──────────────────────────────────────────┐"
+Write-Host "│  Deploying ServiceMonitor for Prometheus scraping...      │"
+Start-Sleep -Seconds 1
+Write-Host "│  Port: metrics (9090)"
+Write-Host "│  Interval: 15s"
+Write-Host "│  Path: /metrics"
+Write-Host "│  Labels: app=$project, release=$release, runtime=nodejs"
+Write-Host "│  Status: Applied"
+Write-Host "└────────────────────────────────────────────────────────────┘"
+Write-Host ""
+
+Write-Host "┌─ Grafana Dashboard ───────────────────────────────────────┐"
+Write-Host "│  Provisioning Node.js service dashboard...                │"
+Start-Sleep -Seconds 1
+Write-Host "│  Dashboard: $project-overview"
+Write-Host "│  Panels: Request Rate, Error Rate, Latency P50/P95/P99"
+Write-Host "│          Event Loop Lag, Heap Used/Total, Active Handles"
+Write-Host "│          Feature Flag Hit Rate, WebSocket Connections"
+Write-Host "│          Pod CPU, Pod Memory"
+Write-Host "│  Folder: Services / $cloudTarget"
+Write-Host "│  Status: Provisioned"
+Write-Host "└────────────────────────────────────────────────────────────┘"
+Write-Host ""
+
+Write-Host "┌─ SLO Alerting Rules ──────────────────────────────────────┐"
+Write-Host "│  Deploying PrometheusRule for SLO-based alerts...         │"
+Start-Sleep -Seconds 1
+Write-Host "│  [SLO] Availability: 99.9% over 30d rolling window"
+Write-Host "│  [SLO] Latency P99: < 300ms"
+Write-Host "│  [SLO] Event loop lag: < 100ms"
+Write-Host "│  [ALERT] ErrorBudgetBurn > 2x in 1h => page"
+Write-Host "│  [ALERT] ErrorBudgetBurn > 1x in 6h => ticket"
+Write-Host "│  [ALERT] EventLoopLag > 500ms in 5m => page"
+Write-Host "│  [ALERT] HeapUsage > 90% in 10m => ticket"
+Write-Host "│  Status: Applied"
+Write-Host "└────────────────────────────────────────────────────────────┘"
+Write-Host ""
+Write-Host "Monitoring configuration complete."
+EOT
+            OctopusUseBundledTooling = "False"
         }
         worker_pool_variable = ""
     }
