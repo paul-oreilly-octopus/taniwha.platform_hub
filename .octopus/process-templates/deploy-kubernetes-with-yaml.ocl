@@ -65,3 +65,22 @@ step "simple-kubernetes-deployment" {
         }
     }
 }
+
+step "say-success" {
+    name = "Say \"Success!\""
+    properties = {
+        Octopus.Action.TargetRoles = "#{target_tags}"
+    }
+
+    action {
+        action_type = "Octopus.Script"
+        properties = {
+            Octopus.Action.RunOnServer = "false"
+            Octopus.Action.Script.ScriptBody = "echo \"Success\""
+            Octopus.Action.Script.ScriptSource = "Inline"
+            Octopus.Action.Script.Syntax = "Bash"
+            OctopusUseBundledTooling = "False"
+        }
+        worker_pool_variable = ""
+    }
+}
