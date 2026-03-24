@@ -1,2 +1,67 @@
 name = "Deploy Kubernetes with YAML"
 description = ""
+
+parameter "target_tags" {
+    display_settings = {
+        Octopus.ControlType = "TargetTags"
+    }
+    help_text = ""
+    label = ""
+}
+
+parameter "repo_url" {
+    display_settings = {
+        Octopus.ControlType = "SingleLineText"
+    }
+    help_text = ""
+    label = ""
+}
+
+parameter "yaml_path" {
+    display_settings = {
+        Octopus.ControlType = "SingleLineText"
+    }
+    help_text = "The path in the repo that has the YAML to deploy"
+    label = "Repo YAML Path"
+}
+
+parameter "Namespace" {
+    display_settings = {
+        Octopus.ControlType = "SingleLineText"
+    }
+    help_text = "Which namespace should be used for this deployment?"
+    label = "Kubernetes Namespace to Deploy Into"
+
+    value "my-app" {}
+}
+
+step "simple-kubernetes-deployment" {
+    name = "Simple Kubernetes Deployment"
+    properties = {
+        Octopus.Action.TargetRoles = "#{target_tags}"
+    }
+
+    action {
+        action_type = "Octopus.KubernetesDeployRawYaml"
+        properties = {
+            Octopus.Action.GitRepository.FilePathFilters = "#{{yaml_path}}"
+            Octopus.Action.GitRepository.Source = "External"
+            Octopus.Action.Kubernetes.DeploymentTimeout = "180"
+            Octopus.Action.Kubernetes.ResourceStatusCheck = "True"
+            Octopus.Action.Kubernetes.ServerSideApply.Enabled = "True"
+            Octopus.Action.Kubernetes.ServerSideApply.ForceConflicts = "True"
+            Octopus.Action.KubernetesContainers.CustomResourceYamlFileName = "#{yaml_path}"
+            Octopus.Action.KubernetesContainers.Namespace = "#{Namespace}"
+            Octopus.Action.Package.JsonConfigurationVariablesTargets = "**/*.{yml,yaml}"
+            Octopus.Action.Script.ScriptSource = "GitRepository"
+        }
+        worker_pool_variable = ""
+
+        git_dependencies {
+            default_branch = "main"
+            file_path_filters = ["#{yaml_path}"]
+            git_credential_type = "Anonymous"
+            repository_uri = "#{repo_url}"
+        }
+    }
+}
