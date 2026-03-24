@@ -1,0 +1,122 @@
+name = "Payment Service Deploy"
+description = "Hardened deployment pipeline for payment-path services. Adds PCI-DSS compliance checks and blue-green deployment with traffic switching for zero-downtime releases."
+
+parameter "target_tags" {
+    display_settings = {
+        Octopus.ControlType = "TargetTags"
+    }
+    help_text = "Kubernetes deployment target tags"
+    label = "Target Tags"
+}
+
+parameter "cloud_target" {
+    display_settings = {
+        Octopus.ControlType = "SingleLineText"
+    }
+    help_text = "Target cloud provider (gcp, aws, azure)"
+    label = "Cloud Target"
+
+    value "aws" {}
+}
+
+step "run-unit-tests" {
+    name = "Run Unit Tests"
+
+    action {
+        properties = {
+            Octopus.Action.Template.Id = "ActionTemplates-64"
+            Octopus.Action.Template.Version = "0"
+            Language = "go"
+            CloudTarget = "#{cloud_target}"
+        }
+        worker_pool_variable = ""
+    }
+}
+
+step "run-security-scan" {
+    name = "Run Security Scan"
+    start_trigger = "StartAfterPrevious"
+
+    action {
+        properties = {
+            Octopus.Action.Template.Id = "ActionTemplates-66"
+            Octopus.Action.Template.Version = "0"
+            Language = "go"
+            CloudTarget = "#{cloud_target}"
+        }
+        worker_pool_variable = ""
+    }
+}
+
+step "scan-container-image" {
+    name = "Scan Container Image"
+    start_trigger = "StartAfterPrevious"
+
+    action {
+        properties = {
+            Octopus.Action.Template.Id = "ActionTemplates-67"
+            Octopus.Action.Template.Version = "0"
+            CloudTarget = "#{cloud_target}"
+        }
+        worker_pool_variable = ""
+    }
+}
+
+step "pci-dss-compliance-check" {
+    name = "PCI-DSS Compliance Check"
+    start_trigger = "StartAfterPrevious"
+
+    action {
+        properties = {
+            Octopus.Action.Template.Id = "ActionTemplates-72"
+            Octopus.Action.Template.Version = "0"
+            CloudTarget = "#{cloud_target}"
+        }
+        worker_pool_variable = ""
+    }
+}
+
+step "blue-green-deployment" {
+    name = "Blue-Green Deployment"
+    start_trigger = "StartAfterPrevious"
+    properties = {
+        Octopus.Action.TargetRoles = "#{target_tags}"
+    }
+
+    action {
+        properties = {
+            Octopus.Action.Template.Id = "ActionTemplates-69"
+            Octopus.Action.Template.Version = "0"
+            CloudTarget = "#{cloud_target}"
+        }
+        worker_pool_variable = ""
+    }
+}
+
+step "configure-monitoring" {
+    name = "Configure Monitoring"
+    start_trigger = "StartAfterPrevious"
+
+    action {
+        properties = {
+            Octopus.Action.Template.Id = "ActionTemplates-74"
+            Octopus.Action.Template.Version = "0"
+            CloudTarget = "#{cloud_target}"
+        }
+        worker_pool_variable = ""
+    }
+}
+
+step "automated-rollback" {
+    name = "Automated Rollback Check"
+    start_trigger = "StartAfterPrevious"
+
+    action {
+        properties = {
+            Octopus.Action.Template.Id = "ActionTemplates-75"
+            Octopus.Action.Template.Version = "0"
+            CloudTarget = "#{cloud_target}"
+        }
+        worker_pool_variable = ""
+    }
+}

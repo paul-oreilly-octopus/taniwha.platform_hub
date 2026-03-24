@@ -1,0 +1,129 @@
+name = "Database Service Deploy"
+description = "Deployment pipeline for services with database dependencies. Runs schema migrations before deployment with backup and rollback capability."
+
+parameter "target_tags" {
+    display_settings = {
+        Octopus.ControlType = "TargetTags"
+    }
+    help_text = "Kubernetes deployment target tags"
+    label = "Target Tags"
+}
+
+parameter "cloud_target" {
+    display_settings = {
+        Octopus.ControlType = "SingleLineText"
+    }
+    help_text = "Target cloud provider (gcp, aws, azure)"
+    label = "Cloud Target"
+
+    value "gcp" {}
+}
+
+parameter "database_type" {
+    display_settings = {
+        Octopus.ControlType = "SingleLineText"
+    }
+    help_text = "Database engine (postgres, mysql, spanner, dynamodb)"
+    label = "Database Type"
+
+    value "postgres" {}
+}
+
+parameter "language" {
+    display_settings = {
+        Octopus.ControlType = "SingleLineText"
+    }
+    help_text = "Service programming language (go, python, node, java)"
+    label = "Language"
+
+    value "go" {}
+}
+
+step "run-unit-tests" {
+    name = "Run Unit Tests"
+
+    action {
+        properties = {
+            Octopus.Action.Template.Id = "ActionTemplates-64"
+            Octopus.Action.Template.Version = "0"
+            Language = "#{language}"
+            CloudTarget = "#{cloud_target}"
+        }
+        worker_pool_variable = ""
+    }
+}
+
+step "run-security-scan" {
+    name = "Run Security Scan"
+    start_trigger = "StartAfterPrevious"
+
+    action {
+        properties = {
+            Octopus.Action.Template.Id = "ActionTemplates-66"
+            Octopus.Action.Template.Version = "0"
+            Language = "#{language}"
+            CloudTarget = "#{cloud_target}"
+        }
+        worker_pool_variable = ""
+    }
+}
+
+step "run-database-migration" {
+    name = "Run Database Migration"
+    start_trigger = "StartAfterPrevious"
+
+    action {
+        properties = {
+            Octopus.Action.Template.Id = "ActionTemplates-70"
+            Octopus.Action.Template.Version = "0"
+            CloudTarget = "#{cloud_target}"
+            DatabaseType = "#{database_type}"
+        }
+        worker_pool_variable = ""
+    }
+}
+
+step "scan-container-image" {
+    name = "Scan Container Image"
+    start_trigger = "StartAfterPrevious"
+
+    action {
+        properties = {
+            Octopus.Action.Template.Id = "ActionTemplates-67"
+            Octopus.Action.Template.Version = "0"
+            CloudTarget = "#{cloud_target}"
+        }
+        worker_pool_variable = ""
+    }
+}
+
+step "deploy-to-kubernetes" {
+    name = "Deploy to Kubernetes"
+    start_trigger = "StartAfterPrevious"
+    properties = {
+        Octopus.Action.TargetRoles = "#{target_tags}"
+    }
+
+    action {
+        properties = {
+            Octopus.Action.Template.Id = "ActionTemplates-68"
+            Octopus.Action.Template.Version = "0"
+            CloudTarget = "#{cloud_target}"
+        }
+        worker_pool_variable = ""
+    }
+}
+
+step "configure-monitoring" {
+    name = "Configure Monitoring"
+    start_trigger = "StartAfterPrevious"
+
+    action {
+        properties = {
+            Octopus.Action.Template.Id = "ActionTemplates-74"
+            Octopus.Action.Template.Version = "0"
+            CloudTarget = "#{cloud_target}"
+        }
+        worker_pool_variable = ""
+    }
+}

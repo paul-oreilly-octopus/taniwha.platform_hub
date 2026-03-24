@@ -1,0 +1,94 @@
+name = "Standard Go Service Deploy"
+description = "Standard deployment pipeline for Go microservices. Runs unit tests, security scanning, container image scanning, Helm deployment to Kubernetes, and monitoring configuration."
+
+parameter "target_tags" {
+    display_settings = {
+        Octopus.ControlType = "TargetTags"
+    }
+    help_text = "Kubernetes deployment target tags"
+    label = "Target Tags"
+}
+
+parameter "cloud_target" {
+    display_settings = {
+        Octopus.ControlType = "SingleLineText"
+    }
+    help_text = "Target cloud provider (gcp, aws, azure)"
+    label = "Cloud Target"
+
+    value "gcp" {}
+}
+
+step "run-unit-tests" {
+    name = "Run Unit Tests"
+
+    action {
+        properties = {
+            Octopus.Action.Template.Id = "ActionTemplates-64"
+            Octopus.Action.Template.Version = "0"
+            Language = "go"
+            CloudTarget = "#{cloud_target}"
+        }
+        worker_pool_variable = ""
+    }
+}
+
+step "run-security-scan" {
+    name = "Run Security Scan"
+    start_trigger = "StartAfterPrevious"
+
+    action {
+        properties = {
+            Octopus.Action.Template.Id = "ActionTemplates-66"
+            Octopus.Action.Template.Version = "0"
+            Language = "go"
+            CloudTarget = "#{cloud_target}"
+        }
+        worker_pool_variable = ""
+    }
+}
+
+step "scan-container-image" {
+    name = "Scan Container Image"
+    start_trigger = "StartAfterPrevious"
+
+    action {
+        properties = {
+            Octopus.Action.Template.Id = "ActionTemplates-67"
+            Octopus.Action.Template.Version = "0"
+            CloudTarget = "#{cloud_target}"
+        }
+        worker_pool_variable = ""
+    }
+}
+
+step "deploy-to-kubernetes" {
+    name = "Deploy to Kubernetes"
+    start_trigger = "StartAfterPrevious"
+    properties = {
+        Octopus.Action.TargetRoles = "#{target_tags}"
+    }
+
+    action {
+        properties = {
+            Octopus.Action.Template.Id = "ActionTemplates-68"
+            Octopus.Action.Template.Version = "0"
+            CloudTarget = "#{cloud_target}"
+        }
+        worker_pool_variable = ""
+    }
+}
+
+step "configure-monitoring" {
+    name = "Configure Monitoring"
+    start_trigger = "StartAfterPrevious"
+
+    action {
+        properties = {
+            Octopus.Action.Template.Id = "ActionTemplates-74"
+            Octopus.Action.Template.Version = "0"
+            CloudTarget = "#{cloud_target}"
+        }
+        worker_pool_variable = ""
+    }
+}
