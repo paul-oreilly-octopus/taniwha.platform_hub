@@ -1,0 +1,113 @@
+name = "Governed Customer App Deploy"
+description = "Customer-facing app deploy with mandatory security scan in Test, before backend and per-tenant store rollouts. Consumed by projects deploying customer-facing apps (mobile, web, in-store kiosks) — the scan step cannot be omitted by the consuming project."
+
+parameter "backend_target_role" {
+    display_settings = {
+        Octopus.ControlType = "TargetTags"
+    }
+    help_text = "Target tag for the backend (Cloud-Prod) deploy step (e.g. corp-backend)."
+    label = "Backend Target Role"
+}
+
+parameter "store_target_role" {
+    display_settings = {
+        Octopus.ControlType = "TargetTags"
+    }
+    help_text = "Target tag for per-tenant store rollouts in Markets (e.g. store)."
+    label = "Store Target Role"
+}
+
+parameter "worker_pool" {
+    display_settings = {
+        Octopus.ControlType = "WorkerPool"
+    }
+    help_text = "Worker pool for server-side steps."
+    label = "Worker Pool"
+}
+
+step "security-scan" {
+    name = "Security Scan (SBOM + SAST)"
+    start_trigger = "StartAfterPrevious"
+
+    action {
+        action_type = "Octopus.Script"
+        environments = ["test"]
+        properties = {
+            Octopus.Action.RunOnServer = "true"
+            Octopus.Action.Script.ScriptSource = "Inline"
+            Octopus.Action.Script.Syntax = "PowerShell"
+            Octopus.Action.Script.ScriptBody = <<-EOT
+$project = $OctopusParameters['Octopus.Project.Name']
+$release = $OctopusParameters['Octopus.Release.Number']
+
+Write-Host "==> Security scan for $project $release"
+Write-Host "    SAST (Semgrep)        — scanning..."
+Start-Sleep -Seconds 1
+Write-Host "    SBOM (CycloneDX)      — generating..."
+Start-Sleep -Seconds 1
+Write-Host "    Image scan (Trivy)    — scanning..."
+Start-Sleep -Seconds 1
+Write-Host "    Result: 0 critical, 0 high, 2 medium, 7 low — within policy."
+Write-Host "Scan complete."
+EOT
+            OctopusUseBundledTooling = "False"
+        }
+        worker_pool_variable = "worker_pool"
+    }
+}
+
+step "deploy-backend" {
+    name = "Deploy backend (Cloud-Prod)"
+    start_trigger = "StartAfterPrevious"
+    properties = {
+        Octopus.Action.TargetRoles = "#{backend_target_role}"
+    }
+
+    action {
+        action_type = "Octopus.Script"
+        environments = ["cloud-prod"]
+        properties = {
+            Octopus.Action.RunOnServer = "false"
+            Octopus.Action.Script.ScriptSource = "Inline"
+            Octopus.Action.Script.Syntax = "PowerShell"
+            Octopus.Action.Script.ScriptBody = <<-EOT
+$target = $OctopusParameters['Octopus.Machine.Name']
+$project = $OctopusParameters['Octopus.Project.Name']
+$release = $OctopusParameters['Octopus.Release.Number']
+Write-Host "[MOCK] Deploying $project $release backend to $target (Cloud-Prod)"
+Start-Sleep -Seconds 2
+Write-Host "[MOCK] Backend live."
+EOT
+            OctopusUseBundledTooling = "False"
+        }
+        worker_pool_variable = "worker_pool"
+    }
+}
+
+step "deploy-stores" {
+    name = "Deploy to stores (Markets)"
+    start_trigger = "StartAfterPrevious"
+    properties = {
+        Octopus.Action.TargetRoles = "#{store_target_role}"
+    }
+
+    action {
+        action_type = "Octopus.Script"
+        environments = ["markets"]
+        properties = {
+            Octopus.Action.RunOnServer = "false"
+            Octopus.Action.Script.ScriptSource = "Inline"
+            Octopus.Action.Script.Syntax = "PowerShell"
+            Octopus.Action.Script.ScriptBody = <<-EOT
+$store = $OctopusParameters['Octopus.Machine.Name']
+$tenant = $OctopusParameters['Octopus.Deployment.Tenant.Name']
+$release = $OctopusParameters['Octopus.Release.Number']
+Write-Host "[MOCK] Rolling out $release to $store ($tenant)"
+Start-Sleep -Seconds 2
+Write-Host "[MOCK] Store rollout complete."
+EOT
+            OctopusUseBundledTooling = "False"
+        }
+        worker_pool_variable = "worker_pool"
+    }
+}
