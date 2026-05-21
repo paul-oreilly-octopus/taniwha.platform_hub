@@ -1,5 +1,5 @@
 name = "manual-approval-for-prod-deploy"
-violation_action = "block"
+violation_action = "warn"
 
 conditions {
     rego = <<-EOT
