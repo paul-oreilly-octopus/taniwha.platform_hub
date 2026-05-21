@@ -1,0 +1,88 @@
+name = "Governed FinOps Backend Deploy"
+description = "Backend deploy with mandatory FinOps tagging validation. Consuming projects MUST define `cost_centre` and `owner_email` project variables (typically tenant-scoped). The Verify step fails the deployment if either variable is missing or empty for the current scope."
+
+parameter "backend_target_role" {
+    display_settings = {
+        Octopus.ControlType = "TargetTags"
+    }
+    help_text = "Target tag for the backend deploy step (e.g. corp-backend)."
+    label = "Backend Target Role"
+}
+
+parameter "worker_pool" {
+    display_settings = {
+        Octopus.ControlType = "WorkerPool"
+    }
+    help_text = "Worker pool for server-side steps."
+    label = "Worker Pool"
+}
+
+step "verify-finops-variables" {
+    name = "Verify FinOps Variables"
+    start_trigger = "StartAfterPrevious"
+
+    action {
+        action_type = "Octopus.Script"
+        properties = {
+            Octopus.Action.RunOnServer = "true"
+            Octopus.Action.Script.ScriptSource = "Inline"
+            Octopus.Action.Script.Syntax = "PowerShell"
+            Octopus.Action.Script.ScriptBody = <<-EOT
+$ErrorActionPreference = "Stop"
+$cc    = $OctopusParameters['cost_centre']
+$owner = $OctopusParameters['owner_email']
+$tenant = $OctopusParameters['Octopus.Deployment.Tenant.Name']
+$env    = $OctopusParameters['Octopus.Environment.Name']
+
+Write-Host "==> Verifying FinOps variables for tenant=$tenant env=$env"
+Write-Host "    cost_centre = '$cc'"
+Write-Host "    owner_email = '$owner'"
+
+$missing = @()
+if ([string]::IsNullOrWhiteSpace($cc))    { $missing += 'cost_centre' }
+if ([string]::IsNullOrWhiteSpace($owner)) { $missing += 'owner_email' }
+
+if ($missing.Count -gt 0) {
+    Write-Host ""
+    Write-Host "##octopus[stderr-progress]"
+    Write-Error "Policy violation: required FinOps variable(s) not set for tenant '$tenant': $($missing -join ', '). Define these on the project under Variables, scoped to this tenant."
+    exit 1
+}
+Write-Host "FinOps tags resolved. Proceeding."
+EOT
+            OctopusUseBundledTooling = "False"
+        }
+        worker_pool_variable = "worker_pool"
+    }
+}
+
+step "deploy-backend" {
+    name = "Deploy backend"
+    start_trigger = "StartAfterPrevious"
+    properties = {
+        Octopus.Action.TargetRoles = "#{backend_target_role}"
+    }
+
+    action {
+        action_type = "Octopus.Script"
+        environments = ["cloud-prod"]
+        properties = {
+            Octopus.Action.RunOnServer = "false"
+            Octopus.Action.Script.ScriptSource = "Inline"
+            Octopus.Action.Script.Syntax = "PowerShell"
+            Octopus.Action.Script.ScriptBody = <<-EOT
+$target = $OctopusParameters['Octopus.Machine.Name']
+$project = $OctopusParameters['Octopus.Project.Name']
+$release = $OctopusParameters['Octopus.Release.Number']
+$cc = $OctopusParameters['cost_centre']
+$owner = $OctopusParameters['owner_email']
+Write-Host "[MOCK] Deploying $project $release to $target"
+Write-Host "[MOCK]   cost_centre=$cc, owner_email=$owner"
+Start-Sleep -Seconds 2
+Write-Host "[MOCK] Backend live (FinOps tags emitted to billing pipeline)."
+EOT
+            OctopusUseBundledTooling = "False"
+        }
+        worker_pool_variable = "worker_pool"
+    }
+}
