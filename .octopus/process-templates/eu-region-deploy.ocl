@@ -1,0 +1,86 @@
+name = "EU Region Deploy"
+description = "GDPR-aware deployment pattern for projects serving EU customers. Adds a mandatory data-residency check step before the store rollout. Consuming projects must declare a `gdpr_data_residency_region` project variable (e.g. EU-CENTRAL-1) and the step refuses to proceed if it is missing or unset."
+
+parameter "store_target_role" {
+    display_settings = {
+        Octopus.ControlType = "TargetTags"
+    }
+    help_text = "Target tag for per-tenant store rollouts (typically `store`)."
+    label = "Store Target Role"
+}
+
+parameter "worker_pool" {
+    display_settings = {
+        Octopus.ControlType = "WorkerPool"
+    }
+    help_text = "Worker pool for server-side steps."
+    label = "Worker Pool"
+}
+
+step "gdpr-residency-check" {
+    name = "GDPR Data Residency Check"
+    start_trigger = "StartAfterPrevious"
+
+    action {
+        action_type = "Octopus.Script"
+        properties = {
+            Octopus.Action.RunOnServer = "true"
+            Octopus.Action.Script.ScriptSource = "Inline"
+            Octopus.Action.Script.Syntax = "PowerShell"
+            Octopus.Action.Script.ScriptBody = <<-EOT
+$ErrorActionPreference = "Stop"
+$region = $OctopusParameters['gdpr_data_residency_region']
+$tenant = $OctopusParameters['Octopus.Deployment.Tenant.Name']
+$env    = $OctopusParameters['Octopus.Environment.Name']
+
+Write-Host "==> GDPR data-residency check"
+Write-Host "    tenant=$tenant env=$env"
+Write-Host "    gdpr_data_residency_region='$region'"
+
+if ([string]::IsNullOrWhiteSpace($region)) {
+    Write-Error "GDPR enforcement: deployments serving EMEA tenants must declare 'gdpr_data_residency_region' (e.g. EU-CENTRAL-1) as a project variable. Variable is unset for the current scope."
+    exit 1
+}
+
+$allowed = @('EU-CENTRAL-1','EU-WEST-1','EU-WEST-2','EU-WEST-3','EU-NORTH-1','EU-SOUTH-1')
+if ($allowed -notcontains $region) {
+    Write-Error "GDPR enforcement: declared residency region '$region' is not in the EU-zone allow-list ($($allowed -join ', '))."
+    exit 1
+}
+
+Write-Host "Residency confirmed in $region. Proceeding."
+EOT
+            OctopusUseBundledTooling = "False"
+        }
+        worker_pool_variable = "worker_pool"
+    }
+}
+
+step "deploy-stores-eu" {
+    name = "Deploy to EU stores"
+    start_trigger = "StartAfterPrevious"
+    properties = {
+        Octopus.Action.TargetRoles = "#{store_target_role}"
+    }
+
+    action {
+        action_type = "Octopus.Script"
+        environments = ["markets"]
+        properties = {
+            Octopus.Action.RunOnServer = "false"
+            Octopus.Action.Script.ScriptSource = "Inline"
+            Octopus.Action.Script.Syntax = "PowerShell"
+            Octopus.Action.Script.ScriptBody = <<-EOT
+$store = $OctopusParameters['Octopus.Machine.Name']
+$tenant = $OctopusParameters['Octopus.Deployment.Tenant.Name']
+$release = $OctopusParameters['Octopus.Release.Number']
+$region = $OctopusParameters['gdpr_data_residency_region']
+Write-Host "[MOCK] Rolling out $release to $store ($tenant) — data residency: $region"
+Start-Sleep -Seconds 2
+Write-Host "[MOCK] Store rollout complete."
+EOT
+            OctopusUseBundledTooling = "False"
+        }
+        worker_pool_variable = "worker_pool"
+    }
+}
