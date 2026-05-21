@@ -1,0 +1,37 @@
+name = "mandatory-security-scan"
+violation_action = "warn"
+
+conditions {
+    rego = <<-EOT
+            package mandatory_security_scan
+
+            # Default: Deny — customer-mobile-app must include a security scan step
+            # before promoting to Cloud-Prod. The scan can come from inline action
+            # or from consuming the governed-customer-app-deploy process template.
+            default result := {"allowed": false, "reason": "customer-mobile-app requires a security scan step before Cloud-Prod. Add a step whose action name contains 'Security Scan' (or consume the governed-customer-app-deploy hub template)."}
+
+            # Allow: a step exists whose action name contains 'Security Scan'
+            # and it is not in the skipped-steps list.
+            result := {"allowed": true} if {
+                some step in input.Steps
+                contains(step.Name, "Security Scan")
+                not step.Id in input.SkippedSteps
+            }
+            EOT
+}
+
+scope {
+    rego = <<-EOT
+            package mandatory_security_scan
+
+            # Applies to customer-mobile-app at the Test environment — scan must
+            # be present before promotion past Test (and onwards to Cloud-Prod
+            # and Markets).
+            default evaluate := false
+
+            evaluate if {
+                input.Project.Slug == "customer-mobile-app"
+                input.Environment.Name == "Test"
+            }
+            EOT
+}

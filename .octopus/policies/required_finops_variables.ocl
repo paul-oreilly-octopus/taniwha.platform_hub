@@ -1,0 +1,49 @@
+name = "required-finops-variables"
+violation_action = "warn"
+
+conditions {
+    rego = <<-EOT
+            package required_finops_variables
+
+            # Default: Deny — loyalty-rewards-service deployments must have
+            # cost_centre and owner_email variables resolved to non-empty values.
+            # When tenanted, these are typically scoped per-tenant. Native MMI
+            # tenants have them; the acquired Crusty Croissant tenant doesn't,
+            # so its deploys are blocked until the values are set.
+            default result := {"allowed": false, "reason": "loyalty-rewards-service deployments require non-empty 'cost_centre' and 'owner_email' project variables, typically scoped per-tenant. Set these on the project's Variables page for the deploying tenant."}
+
+            # cost_centre must be present and non-empty
+            cost_centre_set if {
+                cc := input.Variables.cost_centre
+                cc != ""
+                cc != null
+            }
+
+            # owner_email must be present and non-empty
+            owner_email_set if {
+                oe := input.Variables.owner_email
+                oe != ""
+                oe != null
+            }
+
+            result := {"allowed": true} if {
+                cost_centre_set
+                owner_email_set
+            }
+            EOT
+}
+
+scope {
+    rego = <<-EOT
+            package required_finops_variables
+
+            # Applies to loyalty-rewards-service in any environment. We want the
+            # block to fire as early as possible (Dev) so the operator sees the
+            # missing variables before the deploy chains through more envs.
+            default evaluate := false
+
+            evaluate if {
+                input.Project.Slug == "loyalty-rewards-service"
+            }
+            EOT
+}

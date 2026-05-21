@@ -1,0 +1,39 @@
+name = "gdpr-step-for-emea-tenants"
+violation_action = "warn"
+
+conditions {
+    rego = <<-EOT
+            package gdpr_step_for_emea_tenants
+
+            # Default: Deny — crusty-croissant-pos deployments to EMEA-tagged
+            # tenants must include a GDPR data-residency check step. The step
+            # can be inline or come from consuming the eu-region-deploy hub
+            # template; either satisfies the policy.
+            default result := {"allowed": false, "reason": "Deployments of crusty-croissant-pos to EMEA-region tenants must include a GDPR data-residency check step (action name containing 'GDPR'). Consume the eu-region-deploy hub template, or add an equivalent inline step."}
+
+            # Allow: a step exists whose action name contains 'GDPR'
+            result := {"allowed": true} if {
+                some step in input.Steps
+                contains(step.Name, "GDPR")
+                not step.Id in input.SkippedSteps
+            }
+            EOT
+}
+
+scope {
+    rego = <<-EOT
+            package gdpr_step_for_emea_tenants
+
+            # Applies to crusty-croissant-pos when deploying to a tenant tagged
+            # Region/EMEA. The acquired Crusty-Croissant-DE-Berlin tenant
+            # carries this tag automatically; native EMEA markets (e.g.
+            # MMI-UK-London) would also be in scope if they were ever connected
+            # to crusty-croissant-pos.
+            default evaluate := false
+
+            evaluate if {
+                input.Project.Slug == "crusty-croissant-pos"
+                "Region/EMEA" in input.Tenant.Tags
+            }
+            EOT
+}
