@@ -1,0 +1,83 @@
+name = "Governed Cloud Prod Deploy"
+description = "Standard governance pattern for Cloud-Prod deployments: mandatory manual approval before the deploy step runs. Consumed by projects deploying sensitive backends (payments, identity, customer data) — the approval step cannot be removed by the consuming project."
+
+parameter "target_role" {
+    display_settings = {
+        Octopus.ControlType = "TargetTags"
+    }
+    help_text = "Target tag for the deploy step (e.g. corp-backend)."
+    label = "Target Role"
+}
+
+parameter "approver_team_ids" {
+    display_settings = {
+        Octopus.ControlType = "SingleLineText"
+    }
+    help_text = "Comma-separated Octopus team IDs authorised to approve. Typically the project's change-approval team (e.g. Teams-82 for Prod Change Approvers)."
+    label = "Approver Team IDs"
+}
+
+parameter "worker_pool" {
+    display_settings = {
+        Octopus.ControlType = "WorkerPool"
+    }
+    help_text = "Worker pool for server-side steps."
+    label = "Worker Pool"
+}
+
+step "approve-cloud-prod" {
+    name = "Approve Cloud-Prod Deployment"
+    start_trigger = "StartAfterPrevious"
+
+    action {
+        action_type = "Octopus.Manual"
+        environments = ["cloud-prod"]
+        properties = {
+            Octopus.Action.Manual.Instructions = <<-EOT
+**Approval required: production deployment of #{Octopus.Project.Name} #{Octopus.Release.Number}**
+
+This project consumes the **governed-cloud-prod-deploy** hub template, which requires explicit approval before any Cloud-Prod step runs.
+
+Please confirm:
+- Change ticket reference is recorded
+- Pre-deploy smoke tests have passed
+- On-call engineer is available
+
+The deploy step will only run after this approval is granted.
+EOT
+            Octopus.Action.Manual.ResponsibleTeamIds = "#{approver_team_ids}"
+            Octopus.Action.RunOnServer = "true"
+        }
+        worker_pool_variable = ""
+    }
+}
+
+step "deploy-to-cloud-prod" {
+    name = "Deploy to Cloud-Prod"
+    start_trigger = "StartAfterPrevious"
+    properties = {
+        Octopus.Action.TargetRoles = "#{target_role}"
+    }
+
+    action {
+        action_type = "Octopus.Script"
+        properties = {
+            Octopus.Action.RunOnServer = "false"
+            Octopus.Action.Script.ScriptSource = "Inline"
+            Octopus.Action.Script.Syntax = "PowerShell"
+            Octopus.Action.Script.ScriptBody = <<-EOT
+$target = $OctopusParameters['Octopus.Machine.Name']
+$project = $OctopusParameters['Octopus.Project.Name']
+$release = $OctopusParameters['Octopus.Release.Number']
+$env = $OctopusParameters['Octopus.Environment.Name']
+
+Write-Host "[MOCK] Deploying $project $release to $target ($env)"
+Start-Sleep -Seconds 2
+Write-Host "[MOCK] Smoke test: GET https://$project.$env.local/health => 200 OK"
+Write-Host "[MOCK] Deployment complete."
+EOT
+            OctopusUseBundledTooling = "False"
+        }
+        worker_pool_variable = "worker_pool"
+    }
+}
