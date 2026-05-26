@@ -6,15 +6,28 @@ conditions {
             package mandatory_security_scan
 
             # Default: Deny — customer-mobile-app must include a security scan step
-            # before promoting to Cloud-Prod. The scan can come from inline action
-            # or from consuming the governed-customer-app-deploy process template.
-            default result := {"allowed": false, "reason": "customer-mobile-app requires a security scan step before Cloud-Prod. Add a step whose action name contains 'Security Scan' (or consume the governed-customer-app-deploy hub template)."}
+            # before promoting to Cloud-Prod. Compliance can come from either an
+            # inline step named '...Security Scan...' OR from consuming a hub
+            # process template that's known to include the scan.
+            default result := {"allowed": false, "reason": "customer-mobile-app requires a security scan before Cloud-Prod. Add an inline step whose name contains 'Security Scan', OR consume a hub template that provides one (e.g. governed-customer-app-deploy)."}
 
-            # Allow: a step exists whose action name contains 'Security Scan'
-            # and it is not in the skipped-steps list.
+            # Whitelist: hub process templates that include a security scan.
+            # Template internals aren't visible to the policy engine (Source.SlugOrId
+            # is all that's exposed), so we maintain this list explicitly.
+            security_scan_templates := {"governed-customer-app-deploy"}
+
+            # Allow: an inline step with 'Security Scan' in the name
             result := {"allowed": true} if {
                 some step in input.Steps
                 contains(step.Name, "Security Scan")
+                not step.Id in input.SkippedSteps
+            }
+
+            # Allow: consuming a whitelisted hub template that provides the scan
+            result := {"allowed": true} if {
+                some step in input.Steps
+                step.Source.Type == "Process Template"
+                step.Source.SlugOrId in security_scan_templates
                 not step.Id in input.SkippedSteps
             }
             EOT

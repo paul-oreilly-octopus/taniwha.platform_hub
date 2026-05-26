@@ -6,24 +6,37 @@ conditions {
             package manual_approval_for_prod_deploy
 
             # Default: Deny — payment-gateway must include a manual intervention step
-            # in its deployment process before reaching Cloud-Prod.
-            default result := {"allowed": false, "reason": "payment-gateway deployments to Cloud-Prod must include a manual intervention (approval) step. Add an Octopus.Manual action to the deployment process — typically by consuming the governed-cloud-prod-deploy process template."}
+            # in its deployment process before reaching Cloud-Prod. Compliance can
+            # come from an inline Octopus.Manual step OR from consuming a hub
+            # template that provides one.
+            default result := {"allowed": false, "reason": "payment-gateway deployments to Cloud-Prod must include a manual intervention (approval) step. Add an Octopus.Manual action inline, OR consume the governed-cloud-prod-deploy hub template which provides one."}
 
-            # Helper: True if any manual intervention step is in the skipped steps list
+            # Whitelist: hub templates that include a manual approval step.
+            approval_templates := {"governed-cloud-prod-deploy"}
+
+            # Helper: True if any inline manual intervention step is in the skipped list
             manual_intervention_skipped if {
                 some step in input.Steps
                 step.Id in input.SkippedSteps
                 step.ActionType == "Octopus.Manual"
             }
 
-            # Allow: at least one manual intervention step exists, and none are being skipped
+            # Allow: an inline manual intervention step exists and isn't being skipped
             result := {"allowed": true} if {
                 some step in input.Steps
                 step.ActionType == "Octopus.Manual"
                 not manual_intervention_skipped
             }
 
-            # Deny if every manual intervention is being skipped
+            # Allow: consuming a hub template that provides the approval step
+            result := {"allowed": true} if {
+                some step in input.Steps
+                step.Source.Type == "Process Template"
+                step.Source.SlugOrId in approval_templates
+                not step.Id in input.SkippedSteps
+            }
+
+            # Deny if every inline manual intervention is being skipped
             result := {
                 "allowed": false,
                 "reason": "Manual intervention steps cannot be skipped on Cloud-Prod deployments for payment-gateway.",

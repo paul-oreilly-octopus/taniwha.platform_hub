@@ -6,15 +6,26 @@ conditions {
             package gdpr_step_for_emea_tenants
 
             # Default: Deny — crusty-croissant-pos deployments to EMEA-tagged
-            # tenants must include a GDPR data-residency check step. The step
-            # can be inline or come from consuming the eu-region-deploy hub
-            # template; either satisfies the policy.
-            default result := {"allowed": false, "reason": "Deployments of crusty-croissant-pos to EMEA-region tenants must include a GDPR data-residency check step (action name containing 'GDPR'). Consume the eu-region-deploy hub template, or add an equivalent inline step."}
+            # tenants must include a GDPR data-residency check step. Compliance
+            # can come from either an inline step with 'GDPR' in the name OR
+            # from consuming a hub template that provides one.
+            default result := {"allowed": false, "reason": "Deployments of crusty-croissant-pos to EMEA-region tenants must include a GDPR data-residency check. Add an inline step whose name contains 'GDPR', OR consume the eu-region-deploy hub template which provides one."}
 
-            # Allow: a step exists whose action name contains 'GDPR'
+            # Whitelist: hub templates that include a GDPR data-residency step.
+            gdpr_templates := {"eu-region-deploy"}
+
+            # Allow: an inline step whose name contains 'GDPR'
             result := {"allowed": true} if {
                 some step in input.Steps
                 contains(step.Name, "GDPR")
+                not step.Id in input.SkippedSteps
+            }
+
+            # Allow: consuming a hub template that provides the GDPR check
+            result := {"allowed": true} if {
+                some step in input.Steps
+                step.Source.Type == "Process Template"
+                step.Source.SlugOrId in gdpr_templates
                 not step.Id in input.SkippedSteps
             }
             EOT
