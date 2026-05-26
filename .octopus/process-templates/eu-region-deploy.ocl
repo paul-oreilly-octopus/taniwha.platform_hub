@@ -1,5 +1,5 @@
 name = "EU Region Deploy"
-description = "GDPR-aware deployment pattern for projects serving EU customers. Adds a mandatory data-residency check step before the store rollout. Consuming projects must declare a `gdpr_data_residency_region` project variable (e.g. EU-CENTRAL-1) and the step refuses to proceed if it is missing or unset."
+description = "GDPR-aware deployment pattern for projects serving EU customers. Adds a mandatory data-residency check step before the store rollout. Consuming projects must declare a `gdpr_data_residency_region` project variable (e.g. EU-CENTRAL-1) and the step refuses to proceed if it is missing or unset. Process templates cannot env-scope steps in OCL — the store_target_role parameter is what restricts the deploy step to envs containing matching store targets (typically Markets)."
 
 parameter "store_target_role" {
     display_settings = {
@@ -65,7 +65,6 @@ step "deploy-stores-eu" {
 
     action {
         action_type = "Octopus.Script"
-        environments = ["markets"]
         properties = {
             Octopus.Action.RunOnServer = "false"
             Octopus.Action.Script.ScriptSource = "Inline"

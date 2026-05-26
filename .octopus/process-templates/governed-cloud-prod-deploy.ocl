@@ -1,5 +1,5 @@
 name = "Governed Cloud Prod Deploy"
-description = "Standard governance pattern for Cloud-Prod deployments: mandatory manual approval before the deploy step runs. Consumed by projects deploying sensitive backends (payments, identity, customer data) — the approval step cannot be removed by the consuming project."
+description = "Standard governance pattern for Cloud-Prod deployments: mandatory manual approval before the deploy step runs. Consumed by projects deploying sensitive backends (payments, identity, customer data) — the approval step cannot be removed by the consuming project. Process templates are space-agnostic and cannot env-scope steps in the OCL; the consuming project's lifecycle and target-role assignments determine which envs each step actually runs in (e.g. the deploy step's target_role parameter will typically resolve to targets that only exist in Cloud-Prod)."
 
 parameter "target_role" {
     display_settings = {
@@ -31,7 +31,6 @@ step "approve-cloud-prod" {
 
     action {
         action_type = "Octopus.Manual"
-        environments = ["cloud-prod"]
         properties = {
             Octopus.Action.Manual.Instructions = <<-EOT
 **Approval required: production deployment of #{Octopus.Project.Name} #{Octopus.Release.Number}**
@@ -48,7 +47,7 @@ EOT
             Octopus.Action.Manual.ResponsibleTeamIds = "#{approver_team_ids}"
             Octopus.Action.RunOnServer = "true"
         }
-        worker_pool_variable = ""
+        worker_pool_variable = "worker_pool"
     }
 }
 

@@ -1,5 +1,5 @@
 name = "Governed Customer App Deploy"
-description = "Customer-facing app deploy with mandatory security scan in Test, before backend and per-tenant store rollouts. Consumed by projects deploying customer-facing apps (mobile, web, in-store kiosks) — the scan step cannot be omitted by the consuming project."
+description = "Customer-facing app deploy with mandatory security scan, then backend, then per-tenant store rollouts. Consumed by projects deploying customer-facing apps (mobile, web, in-store kiosks) — the scan step cannot be omitted by the consuming project. Process templates cannot env-scope steps in the OCL (templates are space-agnostic); the consuming project's target-role assignments naturally restrict where each step runs — backend_target_role typically resolves only in Cloud-Prod, store_target_role only in Markets, and the server-side scan step has no targets so it runs in every phase."
 
 parameter "backend_target_role" {
     display_settings = {
@@ -31,7 +31,6 @@ step "security-scan" {
 
     action {
         action_type = "Octopus.Script"
-        environments = ["test"]
         properties = {
             Octopus.Action.RunOnServer = "true"
             Octopus.Action.Script.ScriptSource = "Inline"
@@ -65,7 +64,6 @@ step "deploy-backend" {
 
     action {
         action_type = "Octopus.Script"
-        environments = ["cloud-prod"]
         properties = {
             Octopus.Action.RunOnServer = "false"
             Octopus.Action.Script.ScriptSource = "Inline"
@@ -93,7 +91,6 @@ step "deploy-stores" {
 
     action {
         action_type = "Octopus.Script"
-        environments = ["markets"]
         properties = {
             Octopus.Action.RunOnServer = "false"
             Octopus.Action.Script.ScriptSource = "Inline"

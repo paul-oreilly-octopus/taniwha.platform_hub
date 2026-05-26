@@ -1,5 +1,5 @@
 name = "Governed FinOps Backend Deploy"
-description = "Backend deploy with mandatory FinOps tagging validation. Consuming projects MUST define `cost_centre` and `owner_email` project variables (typically tenant-scoped). The Verify step fails the deployment if either variable is missing or empty for the current scope."
+description = "Backend deploy with mandatory FinOps tagging validation. Consuming projects MUST define `cost_centre` and `owner_email` project variables (typically tenant-scoped). The Verify step fails the deployment if either variable is missing or empty for the current scope. Process templates cannot env-scope steps in OCL — the consuming project's lifecycle controls env flow, and the backend_target_role parameter is what restricts the deploy step to envs containing matching targets (typically Cloud-Prod)."
 
 parameter "backend_target_role" {
     display_settings = {
@@ -65,7 +65,6 @@ step "deploy-backend" {
 
     action {
         action_type = "Octopus.Script"
-        environments = ["cloud-prod"]
         properties = {
             Octopus.Action.RunOnServer = "false"
             Octopus.Action.Script.ScriptSource = "Inline"
