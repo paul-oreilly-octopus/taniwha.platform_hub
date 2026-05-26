@@ -1,5 +1,5 @@
 name = "gdpr-step-for-emea-tenants"
-violation_action = "warn"
+violation_action = "block"
 
 conditions {
     rego = <<-EOT
