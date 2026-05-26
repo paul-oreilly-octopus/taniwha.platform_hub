@@ -1,5 +1,5 @@
 name = "mandatory-security-scan"
-violation_action = "warn"
+violation_action = "block"
 
 conditions {
     rego = <<-EOT
