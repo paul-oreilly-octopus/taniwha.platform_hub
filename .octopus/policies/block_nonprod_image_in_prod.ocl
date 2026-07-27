@@ -53,13 +53,20 @@ conditions {
         # happens to be registered in this space. This is the rule that maps directly
         # onto an Artifactory repo-path convention.
         #
-        # NOTE pkg.Id is the image path ("…/acme-app-nonprod"); pkg.Name is only the
+        # NOTE pkg.Id is the image path ("…/demo-non-prod-feed"); pkg.Name is only the
         # step's package reference name ("acme-app"). The published schema table
         # describes these the other way round.
+        #
+        # Both spellings are matched so a repo rename between "nonprod" and "non-prod"
+        # cannot silently disarm this rule. Neither substring appears in the production
+        # image path ("demo-prod-feed"), so there is no false positive.
+        nonprod_path_markers := {"nonprod", "non-prod"}
+
         violations contains msg if {
             input.Environment.Slug in protected_env_slugs
             some pkg in selected_packages
-            contains(lower(pkg.Id), "nonprod")
+            some marker in nonprod_path_markers
+            contains(lower(pkg.Id), marker)
             msg := sprintf(
                 "Image '%s' resolves from a non-production image repository. Images built for non-production may not be deployed to %s.",
                 [pkg.Id, input.Environment.Name],
