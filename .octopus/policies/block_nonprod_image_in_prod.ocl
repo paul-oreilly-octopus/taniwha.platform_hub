@@ -1,0 +1,94 @@
+name = "block-nonprod-image-in-prod"
+violation_action = "warn"
+
+conditions {
+    rego = <<-EOT
+        package block_nonprod_image_in_prod
+
+        # Allow by default. This policy blocks a specific bad condition rather than
+        # requiring a specific good thing to be present, so allow-by-default is the
+        # correct posture here — unlike the step-presence policies in PolicyDemo.
+        default result := {
+            "allowed": true,
+            "reason": "All packages are sourced from a production-approved registry.",
+        }
+
+        nonprod_feed_slugs := {"acme-ghcr-nonprod"}
+
+        protected_env_slugs := {"production"}
+
+        # Only packages carrying a resolved Version belong to THIS release.
+        #
+        # input.Steps is built from the raw release snapshot, not the channel-filtered
+        # deployment plan, so channel-scoped steps that do not apply to this release's
+        # channel are STILL present here, with their Feed populated. The discriminator
+        # is Version: it is projected from the release's SelectedPackages, which names
+        # only the in-play step. A bare pkg.Version reference is undefined when the key
+        # is absent, so those packages drop out of this comprehension.
+        #
+        # Verified against a live payload 2026-07-27. Undocumented behaviour — if it
+        # ever changes, this policy starts blocking legitimate production releases, so
+        # always re-verify BOTH directions after editing.
+        selected_packages contains pkg if {
+            some step in input.Steps
+            step.Enabled == true
+            not step.Id in input.SkippedSteps
+            some pkg in step.Packages
+            pkg.Version
+        }
+
+        # Primary control: which registry did Octopus resolve this image from?
+        # Octopus derives Feed from the step definition, so CI cannot spoof it.
+        violations contains msg if {
+            input.Environment.Slug in protected_env_slugs
+            some pkg in selected_packages
+            pkg.Feed.Slug in nonprod_feed_slugs
+            msg := sprintf(
+                "Image '%s' (%s) resolves from non-production registry '%s'. Images built for non-production may not be deployed to %s.",
+                [pkg.Id, pkg.Version, pkg.Feed.Name, input.Environment.Name],
+            )
+        }
+
+        # Defence in depth: the image repository path, independent of how the feed
+        # happens to be registered in this space. This is the rule that maps directly
+        # onto an Artifactory repo-path convention.
+        #
+        # NOTE pkg.Id is the image path ("…/acme-app-nonprod"); pkg.Name is only the
+        # step's package reference name ("acme-app"). The published schema table
+        # describes these the other way round.
+        violations contains msg if {
+            input.Environment.Slug in protected_env_slugs
+            some pkg in selected_packages
+            contains(lower(pkg.Id), "nonprod")
+            msg := sprintf(
+                "Image '%s' resolves from a non-production image repository. Images built for non-production may not be deployed to %s.",
+                [pkg.Id, input.Environment.Name],
+            )
+        }
+
+        result := {
+            "allowed": false,
+            "reason": concat(" ", violations),
+        } if {
+            count(violations) > 0
+        }
+    EOT
+}
+
+scope {
+    rego = <<-EOT
+        package block_nonprod_image_in_prod
+
+        default evaluate := false
+
+        # Pinned to this space. Platform Hub policies are instance-wide and this
+        # instance also hosts PolicyDemo, PlatformHub Demo, Dual-Image and others.
+        #
+        # Runbook runs are excluded: input.Steps[].Packages is not populated for them,
+        # so every rule above would be vacuous and the evaluation would be misleading.
+        evaluate if {
+            input.Space.Slug == "duel-image-with-policy-enforcement"
+            not input.Runbook
+        }
+    EOT
+}
