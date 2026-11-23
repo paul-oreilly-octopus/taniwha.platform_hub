@@ -1,0 +1,8 @@
+name = "Test101"
+description = ""
+lifecycle = "default"
+
+icon {
+    color = "#757575"
+    id = "layer-group"
+}
