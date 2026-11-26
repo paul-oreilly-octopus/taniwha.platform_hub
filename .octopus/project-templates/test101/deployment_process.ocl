@@ -8,3 +8,8 @@ step "manual-intervention-required" {
         }
     }
 }
+
+slot "custom-steps" {
+    name = "Custom Steps"
+    description = "Custom Steps for your own process\\"
+}
