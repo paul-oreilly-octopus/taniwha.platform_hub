@@ -1,0 +1,8 @@
+name = "Flex API Probe"
+description = "Scratch template for API discovery - safe to delete"
+lifecycle = "default"
+
+icon {
+    color = "#757575"
+    id = "layer-group"
+}
