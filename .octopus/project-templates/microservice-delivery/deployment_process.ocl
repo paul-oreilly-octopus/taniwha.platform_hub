@@ -1,10 +1,12 @@
 step "approve-production-deployment" {
+    condition = "Variable"
     name = "Approve production deployment"
+    properties = {
+        Octopus.Step.ConditionVariableExpression = "#{if Octopus.Environment.Id == \"#{production-environment}\"}true#{/if}"
+    }
 
     action {
         action_type = "Octopus.Manual"
-        environments_variable = "production-environment"
-        environments_variables = ["production-environment"]
         properties = {
             Octopus.Action.Manual.BlockConcurrentDeployments = "False"
             Octopus.Action.Manual.Instructions = "Deployments to Production are manually approved. Check the release notes and the staging results, then proceed."
