@@ -1,6 +1,6 @@
 parameter "dev_env" {
     display_settings = {
-        Octopus.ControlType = "Environments"
+        Octopus.ControlType = "Environment"
     }
     help_text = ""
     label = "Dev Environment"
