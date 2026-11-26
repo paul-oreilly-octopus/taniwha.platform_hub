@@ -1,0 +1,7 @@
+parameter "production_env" {
+    display_settings = {
+        Octopus.ControlType = "Environments"
+    }
+    help_text = "Env(s) used for Production"
+    label = "Production Environment"
+}
