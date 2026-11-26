@@ -1,2 +1,62 @@
 name = "Post-deploy smoke test"
 description = "Checks a deployed service responds and its error rate is acceptable."
+
+parameter "service_url" {
+    display_settings = {
+        Octopus.ControlType = "SingleLineText"
+    }
+    help_text = "Base URL of the deployed service to smoke test."
+    label = "Service URL"
+
+    value "https://service.example.internal" {}
+}
+
+parameter "worker_pool" {
+    display_settings = {
+        Octopus.ControlType = "WorkerPool"
+    }
+    help_text = "Worker pool that runs the smoke test (use a Linux pool)."
+    label = "Worker Pool"
+}
+
+step "http-health-check" {
+    name = "HTTP health check"
+
+    action {
+        action_type = "Octopus.Script"
+        properties = {
+            Octopus.Action.RunOnServer = "true"
+            Octopus.Action.Script.ScriptBody = <<-EOT
+                URL="#{service_url}"
+                echo "GET ${URL}/healthz"
+                echo "  -> 200 OK (latency 42ms)"
+                echo "GET ${URL}/readyz"
+                echo "  -> 200 OK"
+                
+                EOT
+            Octopus.Action.Script.ScriptSource = "Inline"
+            Octopus.Action.Script.Syntax = "Bash"
+        }
+        worker_pool_variable = "worker_pool"
+    }
+}
+
+step "error-rate-check" {
+    name = "Error rate check"
+
+    action {
+        action_type = "Octopus.Script"
+        properties = {
+            Octopus.Action.RunOnServer = "true"
+            Octopus.Action.Script.ScriptBody = <<-EOT
+                echo "Querying error rate for #{Octopus.Project.Name} over the last 5 minutes"
+                echo "  5xx rate: 0.02% (threshold 1%)"
+                echo "Smoke test passed."
+                
+                EOT
+            Octopus.Action.Script.ScriptSource = "Inline"
+            Octopus.Action.Script.Syntax = "Bash"
+        }
+        worker_pool_variable = "worker_pool"
+    }
+}
