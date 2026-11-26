@@ -1,0 +1,2 @@
+name = "Post-deploy smoke test"
+description = "Checks a deployed service responds and its error rate is acceptable."
