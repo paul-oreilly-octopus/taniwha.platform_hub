@@ -1,0 +1,8 @@
+name = "Microservice Delivery"
+description = "Standard delivery for Kubernetes microservices in the monorepo. Production deployments are manually approved. Teams add their own steps in the slots."
+lifecycle = "default"
+
+icon {
+    color = "#2F93E0"
+    id = "layer-group"
+}
