@@ -1,7 +1,7 @@
-parameter "production_env" {
+parameter "dev_env" {
     display_settings = {
-        Octopus.ControlType = "SingleLineText"
+        Octopus.ControlType = "Environments"
     }
-    help_text = "Env(s) used for Production"
-    label = "Production Environment"
+    help_text = ""
+    label = "Dev Environment"
 }
