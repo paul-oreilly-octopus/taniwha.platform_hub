@@ -1,0 +1,85 @@
+step "approve-production-deployment" {
+    name = "Approve production deployment"
+
+    action {
+        action_type = "Octopus.Manual"
+        environments_variables = ["production-environment"]
+        properties = {
+            Octopus.Action.Manual.BlockConcurrentDeployments = "False"
+            Octopus.Action.Manual.Instructions = "Deployments to Production are manually approved. Check the release notes and the staging results, then proceed."
+        }
+    }
+}
+
+step "pre-flight-health-check" {
+    name = "Pre-flight cluster health check"
+
+    action {
+        action_type = "Octopus.Script"
+        properties = {
+            Octopus.Action.RunOnServer = "true"
+            Octopus.Action.Script.ScriptBody = <<-EOT
+                echo "Checking cluster health before deploying #{Octopus.Project.Name} to #{Octopus.Environment.Name}"
+                echo "  kubectl get nodes            -> 6/6 Ready"
+                echo "  kubectl get pods -A          -> no CrashLoopBackOff"
+                echo "  platform health endpoint     -> 200 OK"
+                
+                EOT
+            Octopus.Action.Script.ScriptSource = "Inline"
+            Octopus.Action.Script.Syntax = "Bash"
+        }
+        worker_pool_variable = "worker-pool"
+    }
+}
+
+slot "pre-deploy" {
+    name = "Pre-deploy"
+    description = "Add your team's own steps here: database migrations, feature-flag checks, config validation. They run after the platform health check and before the deployment."
+}
+
+step "deploy-microservice" {
+    name = "Deploy microservice"
+
+    action {
+        action_type = "Octopus.Script"
+        properties = {
+            Octopus.Action.RunOnServer = "true"
+            Octopus.Action.Script.ScriptBody = <<-EOT
+                SERVICE="#{Octopus.Project.Name}"
+                echo "Monorepo path:   services/${SERVICE}"
+                echo "Environment:     #{Octopus.Environment.Name}"
+                echo "Release:         #{Octopus.Release.Number}"
+                echo "helm upgrade --install ${SERVICE} ./services/${SERVICE}/chart \\"
+                echo "  --namespace ${SERVICE} --set image.tag=#{Octopus.Release.Number}"
+                echo "Rollout complete."
+                
+                EOT
+            Octopus.Action.Script.ScriptSource = "Inline"
+            Octopus.Action.Script.Syntax = "Bash"
+        }
+        worker_pool_variable = "worker-pool"
+    }
+}
+
+slot "post-deploy-verification" {
+    name = "Post-deploy verification"
+    description = "Add your team's verification here: smoke tests, contract tests, synthetic checks. They run after the deployment and before the notification."
+}
+
+step "notify-deployment" {
+    name = "Notify deployment"
+
+    action {
+        action_type = "Octopus.Script"
+        properties = {
+            Octopus.Action.RunOnServer = "true"
+            Octopus.Action.Script.ScriptBody = <<-EOT
+                echo "Notifying #deployments: #{Octopus.Project.Name} #{Octopus.Release.Number} is live in #{Octopus.Environment.Name}"
+                
+                EOT
+            Octopus.Action.Script.ScriptSource = "Inline"
+            Octopus.Action.Script.Syntax = "Bash"
+        }
+        worker_pool_variable = "worker-pool"
+    }
+}
