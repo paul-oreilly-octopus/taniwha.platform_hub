@@ -1,0 +1,39 @@
+parameter "development-environment" {
+    display_settings = {
+        Octopus.ControlType = "Environments"
+    }
+    help_text = "The environment(s) used for Development."
+    label = "Development Environment"
+}
+
+parameter "test-environment" {
+    display_settings = {
+        Octopus.ControlType = "Environments"
+    }
+    help_text = "The environment(s) used for Test."
+    label = "Test Environment"
+}
+
+parameter "staging-environment" {
+    display_settings = {
+        Octopus.ControlType = "Environments"
+    }
+    help_text = "The environment(s) used for Staging."
+    label = "Staging Environment"
+}
+
+parameter "production-environment" {
+    display_settings = {
+        Octopus.ControlType = "Environments"
+    }
+    help_text = "The environment(s) used for Production."
+    label = "Production Environment"
+}
+
+parameter "worker-pool" {
+    display_settings = {
+        Octopus.ControlType = "WorkerPool"
+    }
+    help_text = "Worker pool that runs the template's script steps (use a Linux pool)."
+    label = "Worker Pool"
+}
