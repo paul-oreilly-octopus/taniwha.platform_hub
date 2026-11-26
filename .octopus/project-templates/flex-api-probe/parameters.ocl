@@ -1,0 +1,7 @@
+parameter "test-environment-name" {
+    display_settings = {
+        Octopus.ControlType = "Environments"
+    }
+    help_text = "help text"
+    label = "label"
+}
