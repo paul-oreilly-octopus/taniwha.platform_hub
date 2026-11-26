@@ -2,7 +2,7 @@ step "approve-production-deployment" {
     condition = "Variable"
     name = "Approve production deployment"
     properties = {
-        Octopus.Step.ConditionVariableExpression = "#{if Octopus.Environment.Name == \"Production\"}true#{/if}"
+        Octopus.Step.ConditionVariableExpression = "#{if Octopus.Environment.Id == production-environment}true#{/if}"
     }
 
     action {
